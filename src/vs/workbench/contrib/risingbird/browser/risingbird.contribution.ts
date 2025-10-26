@@ -6,6 +6,7 @@
 import { Disposable } from '../../../../base/common/lifecycle.js';
 import { Registry } from '../../../../platform/registry/common/platform.js';
 import { IConfigurationRegistry, Extensions as ConfigurationExtensions, ConfigurationScope } from '../../../../platform/configuration/common/configurationRegistry.js';
+import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
 import { InstantiationType, registerSingleton } from '../../../../platform/instantiation/common/extensions.js';
 import { IWorkbenchContribution, WorkbenchPhase, registerWorkbenchContribution2 } from '../../../common/contributions.js';
 import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
@@ -259,7 +260,8 @@ class RisingBirdWorkbenchContribution extends Disposable implements IWorkbenchCo
 	constructor(
 		@IInstantiationService private readonly instantiationService: IInstantiationService,
 		@IAIService private readonly aiService: IAIService,
-		@ILogService private readonly logService: ILogService
+		@ILogService private readonly logService: ILogService,
+		@IConfigurationService private readonly configurationService: IConfigurationService
 	) {
 		super();
 
@@ -267,6 +269,14 @@ class RisingBirdWorkbenchContribution extends Disposable implements IWorkbenchCo
 
 		// Register AI providers
 		this._registerProviders();
+
+		// Listen for configuration changes
+		this._register(this.configurationService.onDidChangeConfiguration(e => {
+			if (e.affectsConfiguration('risingbird')) {
+				const enabled = this.configurationService.getValue<boolean>(RisingBirdConfigKeys.Enabled);
+				this.logService.info(`RisingBird: Configuration changed - enabled: ${enabled}`);
+			}
+		}));
 
 		this.logService.info('RisingBird: Initialized successfully');
 	}
