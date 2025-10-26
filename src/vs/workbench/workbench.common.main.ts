@@ -206,6 +206,9 @@ import './contrib/chat/browser/chat.contribution.js';
 import './contrib/inlineChat/browser/inlineChat.contribution.js';
 import './contrib/mcp/browser/mcp.contribution.js';
 
+// RisingBird AI
+import './contrib/risingbird/browser/risingbird.contribution.js';
+
 // Interactive
 import './contrib/interactive/browser/interactive.contribution.js';
 
