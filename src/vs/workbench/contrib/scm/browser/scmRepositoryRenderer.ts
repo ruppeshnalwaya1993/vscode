@@ -91,6 +91,7 @@ export class RepositoryRenderer implements ICompressibleTreeRenderer<ISCMReposit
 	renderTemplate(container: HTMLElement): RepositoryTemplate {
 		// hack
 		if (container.classList.contains('monaco-tl-contents')) {
+			// eslint-disable-next-line no-restricted-syntax
 			(container.parentElement!.parentElement!.querySelector('.monaco-tl-twistie')! as HTMLElement).classList.add('force-twistie');
 		}
 
@@ -99,7 +100,7 @@ export class RepositoryRenderer implements ICompressibleTreeRenderer<ISCMReposit
 		const label = new IconLabel(provider, { supportIcons: false });
 
 		const actions = append(provider, $('.actions'));
-		const toolBar = new WorkbenchToolBar(actions, { actionViewItemProvider: this.actionViewItemProvider, resetMenu: this.toolbarMenuId }, this.menuService, this.contextKeyService, this.contextMenuService, this.keybindingService, this.commandService, this.telemetryService);
+		const toolBar = new WorkbenchToolBar(actions, { actionViewItemProvider: this.actionViewItemProvider, resetMenu: this.toolbarMenuId, responsive: true }, this.menuService, this.contextKeyService, this.contextMenuService, this.keybindingService, this.commandService, this.telemetryService);
 		const countContainer = append(provider, $('.count'));
 		const count = new CountBadge(countContainer, {}, defaultCountBadgeStyles);
 		const visibilityDisposable = toolBar.onDidChangeDropdownVisibility(e => provider.classList.toggle('active', e));
@@ -116,17 +117,16 @@ export class RepositoryRenderer implements ICompressibleTreeRenderer<ISCMReposit
 			this.onDidChangeVisibleRepositoriesSignal.read(reader);
 
 			const isVisible = this.scmViewService.isVisible(repository);
-			templateData.label.element.classList.toggle('visible', isVisible);
+			const icon = ThemeIcon.isThemeIcon(repository.provider.iconPath)
+				? repository.provider.iconPath
+				: Codicon.repo;
 
-			if (ThemeIcon.isThemeIcon(repository.provider.iconPath)) {
-				if (isVisible && repository.provider.iconPath.id === Codicon.repo.id) {
-					templateData.icon.className = ThemeIcon.asClassName(Codicon.repoSelected);
-				} else {
-					templateData.icon.className = ThemeIcon.asClassName(repository.provider.iconPath);
-				}
-			} else {
-				templateData.icon.className = ThemeIcon.asClassName(Codicon.repo);
-			}
+			// Only show the selected icon if there are multiple repositories in the workspace
+			const showSelectedIcon = icon.id === Codicon.repo.id && isVisible && this.scmViewService.repositories.length > 1;
+
+			templateData.icon.className = showSelectedIcon
+				? `icon ${ThemeIcon.asClassName(Codicon.repoSelected)}`
+				: `icon ${ThemeIcon.asClassName(icon)}`;
 		}));
 
 		// Use the description to disambiguate repositories with the same name and have
@@ -153,11 +153,23 @@ export class RepositoryRenderer implements ICompressibleTreeRenderer<ISCMReposit
 			}
 		}
 
+		let label: string;
+		if (this.scmViewService.explorerEnabledConfig.get() === false) {
+			label = repository.provider.name;
+		} else {
+			const parentRepository = this.scmViewService.repositories
+				.find(r => r.provider.id === repository.provider.parentId);
+
+			label = parentRepository
+				? `${parentRepository.provider.name} / ${repository.provider.name}`
+				: repository.provider.name;
+		}
+
 		const title = repository.provider.rootUri
-			? `${repository.provider.label}: ${repository.provider.rootUri.fsPath}`
+			? `${repository.provider.label}: ${this.labelService.getUriLabel(repository.provider.rootUri)}`
 			: repository.provider.label;
 
-		templateData.label.setLabel(repository.provider.name, description, { title });
+		templateData.label.setLabel(label, description, { title });
 
 		let statusPrimaryActions: IAction[] = [];
 		let menuPrimaryActions: IAction[] = [];
@@ -190,7 +202,7 @@ export class RepositoryRenderer implements ICompressibleTreeRenderer<ISCMReposit
 				menuPrimaryActions = primary;
 				menuSecondaryActions = secondary;
 				updateToolbar();
-			}));
+			}, 'inline'));
 		}));
 
 		templateData.toolBar.context = repository.provider;

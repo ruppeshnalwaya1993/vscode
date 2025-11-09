@@ -8,7 +8,7 @@ import { VSBuffer } from '../../../../base/common/buffer.js';
 import { CancellationToken } from '../../../../base/common/cancellation.js';
 import { Emitter, Event } from '../../../../base/common/event.js';
 import { Iterable } from '../../../../base/common/iterator.js';
-import { IJSONSchema } from '../../../../base/common/jsonSchema.js';
+import { IJSONSchema, TypeFromJsonSchema } from '../../../../base/common/jsonSchema.js';
 import { DisposableStore, IDisposable, toDisposable } from '../../../../base/common/lifecycle.js';
 import { isFalsyOrWhitespace } from '../../../../base/common/strings.js';
 import { ThemeIcon } from '../../../../base/common/themables.js';
@@ -241,7 +241,7 @@ export interface ILanguageModelsService {
 	readonly _serviceBrand: undefined;
 
 	// TODO @lramos15 - Make this a richer event in the future. Right now it just indicates some change happened, but not what
-	readonly onDidChangeLanguageModels: Event<void>;
+	readonly onDidChangeLanguageModels: Event<string>;
 
 	updateModelPickerPreference(modelIdentifier: string, showInModelPicker: boolean): void;
 
@@ -265,8 +265,9 @@ export interface ILanguageModelsService {
 	computeTokenLength(modelId: string, message: string | IChatMessage, token: CancellationToken): Promise<number>;
 }
 
-const languageModelChatProviderType: IJSONSchema = {
+const languageModelChatProviderType = {
 	type: 'object',
+	required: ['vendor', 'displayName'],
 	properties: {
 		vendor: {
 			type: 'string',
@@ -285,14 +286,9 @@ const languageModelChatProviderType: IJSONSchema = {
 			description: localize('vscode.extension.contributes.languageModels.when', "Condition which must be true to show this language model chat provider in the Manage Models list.")
 		}
 	}
-};
+} as const satisfies IJSONSchema;
 
-export interface IUserFriendlyLanguageModel {
-	vendor: string;
-	displayName: string;
-	managementCommand?: string;
-	when?: string;
-}
+export type IUserFriendlyLanguageModel = TypeFromJsonSchema<typeof languageModelChatProviderType>;
 
 export const languageModelChatProviderExtensionPoint = ExtensionsRegistry.registerExtensionPoint<IUserFriendlyLanguageModel | IUserFriendlyLanguageModel[]>({
 	extensionPoint: 'languageModelChatProviders',
@@ -326,8 +322,8 @@ export class LanguageModelsService implements ILanguageModelsService {
 	private _modelPickerUserPreferences: Record<string, boolean> = {};
 	private readonly _hasUserSelectableModels: IContextKey<boolean>;
 	private readonly _contextKeyService: IContextKeyService;
-	private readonly _onLanguageModelChange = this._store.add(new Emitter<void>());
-	readonly onDidChangeLanguageModels: Event<void> = this._onLanguageModelChange.event;
+	private readonly _onLanguageModelChange = this._store.add(new Emitter<string>());
+	readonly onDidChangeLanguageModels: Event<string> = this._onLanguageModelChange.event;
 
 	constructor(
 		@IExtensionService private readonly _extensionService: IExtensionService,
@@ -413,7 +409,7 @@ export class LanguageModelsService implements ILanguageModelsService {
 		} else if (model.isUserSelectable !== showInModelPicker) {
 			this._storageService.store('chatModelPickerPreferences', this._modelPickerUserPreferences, StorageScope.PROFILE, StorageTarget.USER);
 		}
-		this._onLanguageModelChange.fire();
+		this._onLanguageModelChange.fire(model.vendor);
 		this._logService.trace(`[LM] Updated model picker preference for ${modelIdentifier} to ${showInModelPicker}`);
 	}
 
@@ -477,7 +473,7 @@ export class LanguageModelsService implements ILanguageModelsService {
 			} catch (error) {
 				this._logService.error(`[LM] Error resolving language models for vendor ${vendor}:`, error);
 			}
-			this._onLanguageModelChange.fire();
+			this._onLanguageModelChange.fire(vendor);
 		});
 	}
 

@@ -39,6 +39,7 @@ import { INSTRUCTIONS_LANGUAGE_ID, PROMPT_LANGUAGE_ID, PromptsType } from '../..
 import { ICustomAgent, IPromptsService, PromptsStorage } from '../../../../common/promptSyntax/service/promptsService.js';
 import { PromptsService } from '../../../../common/promptSyntax/service/promptsServiceImpl.js';
 import { MockFilesystem } from '../testUtils/mockFilesystem.js';
+import { InMemoryStorageService, IStorageService } from '../../../../../../../platform/storage/common/storage.js';
 
 suite('PromptsService', () => {
 	const disposables = ensureNoDisposablesAreLeakedInTestSuite();
@@ -66,6 +67,7 @@ suite('PromptsService', () => {
 		instaService.stub(IWorkbenchEnvironmentService, {});
 		instaService.stub(IUserDataProfileService, new TestUserDataProfileService());
 		instaService.stub(ITelemetryService, NullTelemetryService);
+		instaService.stub(IStorageService, InMemoryStorageService);
 
 		const fileService = disposables.add(instaService.createInstance(FileService));
 		instaService.stub(IFileService, fileService);
@@ -134,8 +136,8 @@ suite('PromptsService', () => {
 								'\t- this file #file:folder1/file3.prompt.md ',
 								'\t- also this [file4.prompt.md](./folder1/some-other-folder/file4.prompt.md) please!',
 								'## Vars',
-								'\t- #my-tool',
-								'\t- #my-other-tool',
+								'\t- #tool:my-tool',
+								'\t- #tool:my-other-tool',
 								' ',
 							],
 						},
@@ -232,8 +234,8 @@ suite('PromptsService', () => {
 			assert.deepEqual(
 				result1.body.variableReferences,
 				[
-					{ name: 'my-tool', range: new Range(10, 5, 10, 12), offset: 240 },
-					{ name: 'my-other-tool', range: new Range(11, 5, 11, 18), offset: 252 },
+					{ name: 'my-tool', range: new Range(10, 10, 10, 17), offset: 240 },
+					{ name: 'my-other-tool', range: new Range(11, 10, 11, 23), offset: 257 },
 				]
 			);
 
@@ -822,13 +824,13 @@ suite('PromptsService', () => {
 										'description: \'Agent file 1.\'',
 										'tools: [ tool1, tool2 ]',
 										'---',
-										'Do it with #tool1',
+										'Do it with #tool:tool1',
 									],
 								},
 								{
 									name: 'agent2.agent.md',
 									contents: [
-										'First use #tool2\nThen use #tool1',
+										'First use #tool:tool2\nThen use #tool:tool1',
 									],
 								}
 							],
@@ -844,7 +846,7 @@ suite('PromptsService', () => {
 					description: 'Agent file 1.',
 					tools: ['tool1', 'tool2'],
 					agentInstructions: {
-						content: 'Do it with #tool1',
+						content: 'Do it with #tool:tool1',
 						toolReferences: [{ name: 'tool1', range: { start: 11, endExclusive: 17 } }],
 						metadata: undefined
 					},
@@ -858,9 +860,9 @@ suite('PromptsService', () => {
 				{
 					name: 'agent2',
 					agentInstructions: {
-						content: 'First use #tool2\nThen use #tool1',
+						content: 'First use #tool:tool2\nThen use #tool:tool1',
 						toolReferences: [
-							{ name: 'tool1', range: { start: 26, endExclusive: 32 } },
+							{ name: 'tool1', range: { start: 31, endExclusive: 37 } },
 							{ name: 'tool2', range: { start: 10, endExclusive: 16 } }
 						],
 						metadata: undefined
@@ -1068,6 +1070,79 @@ suite('PromptsService', () => {
 				result,
 				expected,
 				'Must get custom agents with target attribute.',
+			);
+		});
+
+		test('agents with .md extension (no .agent.md)', async () => {
+			const rootFolderName = 'custom-agents-md-extension';
+			const rootFolder = `/${rootFolderName}`;
+			const rootFolderUri = URI.file(rootFolder);
+
+			workspaceContextService.setWorkspace(testWorkspace(rootFolderUri));
+
+			await (instaService.createInstance(MockFilesystem,
+				[{
+					name: rootFolderName,
+					children: [
+						{
+							name: '.github/agents',
+							children: [
+								{
+									name: 'demonstrate.md',
+									contents: [
+										'---',
+										'description: \'Demonstrate agent.\'',
+										'tools: [ demo-tool ]',
+										'---',
+										'This is a demonstration agent using .md extension.',
+									],
+								},
+								{
+									name: 'test.md',
+									contents: [
+										'Test agent without header.',
+									],
+								}
+							],
+
+						},
+					],
+				}])).mock();
+
+			const result = (await service.getCustomAgents(CancellationToken.None)).map(agent => ({ ...agent, uri: URI.from(agent.uri) }));
+			const expected: ICustomAgent[] = [
+				{
+					name: 'demonstrate',
+					description: 'Demonstrate agent.',
+					tools: ['demo-tool'],
+					agentInstructions: {
+						content: 'This is a demonstration agent using .md extension.',
+						toolReferences: [],
+						metadata: undefined
+					},
+					handOffs: undefined,
+					model: undefined,
+					argumentHint: undefined,
+					target: undefined,
+					uri: URI.joinPath(rootFolderUri, '.github/agents/demonstrate.md'),
+					source: { storage: PromptsStorage.local },
+				},
+				{
+					name: 'test',
+					agentInstructions: {
+						content: 'Test agent without header.',
+						toolReferences: [],
+						metadata: undefined
+					},
+					uri: URI.joinPath(rootFolderUri, '.github/agents/test.md'),
+					source: { storage: PromptsStorage.local },
+				}
+			];
+
+			assert.deepEqual(
+				result,
+				expected,
+				'Must get custom agents with .md extension from .github/agents/ folder.',
 			);
 		});
 	});
