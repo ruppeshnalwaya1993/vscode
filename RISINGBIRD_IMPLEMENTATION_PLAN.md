@@ -67,6 +67,50 @@ Based on research, Cursor provides the following key features:
 4. **Custom Rules/Prompts** - User-defined AI behaviors
 5. **Codebase Embeddings** - Vector database for semantic search
 
+### 🆕 Cursor 2.0 Features (October 2025)
+
+**Critical Updates to Implement**:
+
+1. **Composer Model (In-House AI)**:
+   - Custom AI model optimized for coding tasks
+   - ~4x faster than comparable models (tasks complete in <30 seconds)
+   - Low-latency, agent-driven coding
+   - **Implementation Strategy**: While we can't replicate their proprietary model, we should:
+     - Optimize our provider abstraction for speed
+     - Implement aggressive caching and request batching
+     - Add performance monitoring to track <30s completion targets
+     - Consider fine-tuning open models for code-specific tasks
+
+2. **Multi-Agent Interface**:
+   - Run multiple AI agents simultaneously
+   - Parallel task execution (e.g., write tests while generating code)
+   - Independent agent sessions with shared context
+   - **Implementation Strategy**:
+     - Extend agent orchestrator to support concurrent sessions
+     - Add agent session manager with resource pooling
+     - Implement inter-agent communication protocol
+     - Add UI for managing multiple agent windows
+
+3. **Built-In Browser Testing**:
+   - Native browser tool integrated into editor
+   - Real-time code testing without leaving IDE
+   - Agent can test changes automatically
+   - **Implementation Strategy**:
+     - Integrate with VSCode's webview or external browser
+     - Add browser automation (Playwright/Puppeteer)
+     - Create test result visualization
+     - Enable agents to trigger and analyze test runs
+
+4. **Enhanced Agent Capabilities**:
+   - Agents can now browse web, run tests, and verify changes
+   - Self-correction based on test results
+   - More autonomous problem-solving
+   - **Implementation Strategy**:
+     - Add tool calling interface for agents
+     - Implement web search integration
+     - Add test execution and result parsing
+     - Create feedback loop for agent self-correction
+
 ## Implementation Phases
 
 ### Phase 1: Foundation & Infrastructure (Weeks 1-2)
@@ -190,31 +234,90 @@ Leverage existing inline chat but customize:
 - Multiple suggestion variants
 - Streaming responses
 
-### Phase 5: Composer/Agent Mode (Weeks 8-9)
+### Phase 5: Composer/Agent Mode (Weeks 8-9) - 🆕 Enhanced for Cursor 2.0
 
-#### 5.1 Multi-File Agent
+#### 5.1 Multi-Agent System (NEW)
+**Location**: `src/vs/workbench/contrib/risingbird/browser/composer/`
+
+**Core Components**:
+- `agentSessionManager.ts` - Manage multiple concurrent agent sessions
+- `agentResourcePool.ts` - Resource allocation and rate limiting
+- `interAgentCommunication.ts` - Shared context between agents
+- `agentCoordinator.ts` - Coordinate parallel agent execution
+
+**Multi-Agent Capabilities**:
+- Run 2-5 agents simultaneously (configurable)
+- Parallel task execution:
+  - Agent 1: Write implementation
+  - Agent 2: Generate tests
+  - Agent 3: Update documentation
+  - Agent 4: Review code for issues
+- Shared workspace context
+- Independent API rate limits per agent
+- Progress tracking for all agents
+- Conflict resolution when agents modify same files
+
+#### 5.2 Enhanced Single Agent
 **Location**: `src/vs/workbench/contrib/risingbird/browser/composer/`
 
 Most complex feature:
-- `composerView.ts` - Dedicated composer panel
+- `composerView.ts` - Dedicated composer panel with multi-agent UI
 - `agentOrchestrator.ts` - Multi-step task execution
 - `fileChangeManager.ts` - Track multi-file changes
 - `changePreview.ts` - Preview all changes before applying
 - `shadowWorkspace.ts` - Safe testing environment
+- `agentTools.ts` - Tool calling interface (NEW)
 
-**Capabilities**:
+**Enhanced Capabilities**:
 - Natural language task understanding
 - File creation/deletion/modification
 - Multi-step reasoning
 - Change rollback
 - Progress tracking
+- **🆕 Tool Calling**:
+  - Web search
+  - Test execution
+  - Browser automation
+  - Terminal commands
+  - Git operations
+- **🆕 Self-Correction**:
+  - Run tests after changes
+  - Analyze test failures
+  - Automatically fix issues
+  - Iterative improvement loop
 
-#### 5.2 Shadow Workspace
+#### 5.3 Shadow Workspace with Testing
 Implement safe testing:
 - Create temporary workspace copy
 - Run tests in shadow workspace
 - Preview changes before applying
 - Rollback mechanism
+- **🆕 Integrated Browser Testing**:
+  - Launch browser in shadow workspace
+  - Run E2E tests automatically
+  - Visual regression testing
+  - Performance profiling
+
+#### 5.4 Agent Tools Framework (NEW)
+**Location**: `src/vs/workbench/contrib/risingbird/browser/composer/tools/`
+
+Create extensible tool system:
+- `toolRegistry.ts` - Register and manage available tools
+- `webSearchTool.ts` - Search web for documentation/solutions
+- `testRunnerTool.ts` - Execute tests and parse results
+- `browserTool.ts` - Browser automation and testing
+- `terminalTool.ts` - Execute shell commands
+- `gitTool.ts` - Git operations (commit, branch, merge)
+
+**Tool Interface**:
+```typescript
+interface IAgentTool {
+  name: string;
+  description: string;
+  parameters: IToolParameter[];
+  execute(params: any, context: IAgentContext): Promise<IToolResult>;
+}
+```
 
 ### Phase 6: Advanced Features (Weeks 10-12)
 
@@ -376,17 +479,39 @@ src/vs/workbench/contrib/risingbird/
 │   │   ├── composerView.ts
 │   │   ├── agentOrchestrator.ts
 │   │   ├── fileChangeManager.ts
-│   │   └── shadowWorkspace.ts
+│   │   ├── shadowWorkspace.ts
+│   │   ├── 🆕 agentSessionManager.ts
+│   │   ├── 🆕 agentResourcePool.ts
+│   │   ├── 🆕 interAgentCommunication.ts
+│   │   ├── 🆕 agentCoordinator.ts
+│   │   └── tools/
+│   │       ├── 🆕 toolRegistry.ts
+│   │       ├── 🆕 webSearchTool.ts
+│   │       ├── 🆕 testRunnerTool.ts
+│   │       ├── 🆕 browserTool.ts
+│   │       ├── 🆕 terminalTool.ts
+│   │       └── 🆕 gitTool.ts
+│   ├── testing/
+│   │   ├── 🆕 browserTestingService.ts
+│   │   ├── 🆕 playwrightIntegration.ts
+│   │   ├── 🆕 testResultParser.ts
+│   │   └── 🆕 visualRegressionTesting.ts
 │   ├── terminal/
 │   │   ├── terminalAI.ts
 │   │   └── commandSuggestions.ts
 │   ├── git/
 │   │   ├── commitMessageGenerator.ts
 │   │   └── codeReview.ts
+│   ├── security/
+│   │   ├── 🆕 mcpValidator.ts
+│   │   ├── 🆕 extensionScanner.ts
+│   │   ├── 🆕 sandboxManager.ts
+│   │   └── 🆕 auditLogger.ts
 │   └── ui/
 │       ├── statusBar.ts
 │       ├── modelSelector.ts
-│       └── settingsPanel.ts
+│       ├── settingsPanel.ts
+│       └── 🆕 multiAgentPanel.ts
 └── electron-sandbox/
     └── nativeAI.ts (for local models)
 ```
@@ -395,21 +520,39 @@ src/vs/workbench/contrib/risingbird/
 
 ### External Dependencies
 1. **AI APIs**:
-   - OpenAI SDK
-   - Anthropic SDK
-   - Google Generative AI SDK
+   - OpenAI SDK (^4.0.0)
+   - Anthropic SDK (@anthropic-ai/sdk ^0.9.0)
+   - Google Generative AI SDK (@google/generative-ai ^0.1.0)
 
 2. **Embeddings**:
-   - ONNX Runtime (for local embeddings)
-   - Or API-based embeddings
+   - ONNX Runtime (for local embeddings) - onnxruntime-node ^1.16.0
+   - Or API-based embeddings (OpenAI, Cohere)
 
 3. **Vector Storage**:
    - IndexedDB (browser)
-   - SQLite (electron)
+   - SQLite (electron) - better-sqlite3 ^9.0.0
+   - Consider: LanceDB for high-performance vector search
 
 4. **Utilities**:
-   - tiktoken (token counting)
-   - diff library (for change preview)
+   - tiktoken (^1.0.0) - token counting
+   - diff library (for change preview) - diff ^5.1.0
+   - fast-diff (for real-time diff) - ^1.3.0
+
+5. **🆕 Browser Automation & Testing**:
+   - Playwright (^1.40.0) - for browser testing
+   - Puppeteer (^21.0.0) - alternative browser automation
+   - @playwright/test - testing framework
+
+6. **🆕 Multi-Agent Support**:
+   - p-queue (^8.0.0) - promise queue for rate limiting
+   - bottleneck (^2.19.5) - advanced rate limiting
+   - async-mutex (^0.4.0) - resource locking
+
+7. **🆕 Security**:
+   - helmet - security headers
+   - validator - input validation
+   - sanitize-html - HTML sanitization
+   - @microsoft/applicationinsights - security monitoring
 
 ### VSCode APIs to Use
 - `vscode.languages.registerInlineCompletionItemProvider`
@@ -447,29 +590,117 @@ Main contribution file to register all services and UI components.
 
 ## Security Considerations
 
+### 🚨 Critical Security Updates (2025)
+
+**CVE-2025-54136 - MCP Server Configuration Vulnerability**:
+- **Issue**: Remote code execution through Model Context Protocol (MCP) server config modifications
+- **Impact**: High - Attackers could execute arbitrary code
+- **Mitigation Required**:
+  - Validate all MCP server configurations
+  - Sandbox MCP server execution
+  - Require user approval for MCP server changes
+  - Implement strict permission model for MCP servers
+  - Add security warnings for untrusted MCP configurations
+
+**Extension Security (Lessons from 'susvsex' malware)**:
+- **Issue**: Malicious extensions with ransomware capabilities found in marketplace
+- **Mitigation Required**:
+  - Implement extension security scanning
+  - Code signing for all RisingBird extensions
+  - Runtime permission system for extensions
+  - Sandboxed extension execution
+  - User warnings for high-risk permissions
+
+### Standard Security Measures
+
 1. **API Key Storage**:
    - Use VSCode's secret storage API
    - Never log API keys
    - Encrypt keys at rest
+   - Rotate keys periodically
+   - Detect and prevent key leakage in code
 
 2. **Privacy**:
    - Implement local-only mode
    - Clear opt-in for cloud features
    - No telemetry without consent
    - Respect .gitignore for indexing
+   - **🆕 Data Minimization**: Only send necessary context to AI
+   - **🆕 Audit Logging**: Track all data sent to external services
 
 3. **Code Validation**:
    - Sanitize AI-generated code
    - Warn about potentially dangerous operations
    - Require confirmation for file deletions
+   - **🆕 Sandbox Execution**: Run AI-generated code in isolated environment
+   - **🆕 Static Analysis**: Scan generated code for vulnerabilities
+
+4. **Agent Security (NEW)**:
+   - Rate limiting for agent actions
+   - Require approval for destructive operations
+   - Audit log of all agent actions
+   - Prevent agents from accessing sensitive files
+   - Limit agent tool capabilities based on user permissions
+   - **Browser Tool Security**:
+     - Isolated browser contexts
+     - No access to user credentials
+     - Network request filtering
+   - **Terminal Tool Security**:
+     - Command whitelist/blacklist
+     - Require approval for sudo/admin commands
+     - Prevent shell injection attacks
+
+5. **Multi-Agent Security (NEW)**:
+   - Resource limits per agent (CPU, memory, API calls)
+   - Prevent agent-to-agent attacks
+   - Isolated agent workspaces
+   - Audit trail for agent coordination
 
 ## Performance Targets
 
-1. **Autocomplete Latency**: < 300ms
+### 🎯 Updated for Cursor 2.0 Benchmarks
+
+1. **Autocomplete Latency**: < 300ms (p95)
+   - Target: 150ms average
+   - Cache hit: < 50ms
+   - Streaming: First token < 100ms
+
 2. **Chat Response**: < 2s for first token
-3. **Indexing**: < 5s for 1000 files
-4. **Memory Usage**: < 200MB additional
-5. **CPU Usage**: < 10% idle, < 30% active
+   - Target: 500ms for first token (streaming)
+   - Full response: < 10s for typical queries
+
+3. **🆕 Composer/Agent Tasks**: < 30 seconds
+   - **Critical**: Match Cursor 2.0's 4x speed improvement
+   - Simple tasks (1-2 files): < 10s
+   - Medium tasks (3-5 files): < 20s
+   - Complex tasks (6+ files): < 30s
+   - Strategy: Aggressive caching, parallel execution, optimized prompts
+
+4. **🆕 Multi-Agent Performance**:
+   - 2 agents: < 1.5x single agent time (not 2x due to parallelization)
+   - 3 agents: < 2x single agent time
+   - Resource overhead per agent: < 50MB memory
+
+5. **Indexing**:
+   - Initial: < 5s for 1000 files
+   - Incremental: < 100ms per file
+   - Embedding generation: < 2s for 100 chunks
+
+6. **Memory Usage**:
+   - Base: < 200MB additional
+   - Per agent: < 50MB
+   - Cache: < 100MB
+   - Embeddings: < 500MB for 10k files
+
+7. **CPU Usage**:
+   - Idle: < 5%
+   - Active (single agent): < 30%
+   - Active (multi-agent): < 60%
+
+8. **🆕 Browser Testing**:
+   - Launch browser: < 3s
+   - Test execution: Depends on test suite
+   - Result parsing: < 500ms
 
 ## Success Metrics
 
@@ -562,23 +793,89 @@ Main contribution file to register all services and UI components.
 
 This plan provides a comprehensive roadmap to transform RisingBird into a Cursor-like AI-powered code editor. The implementation leverages VSCode's existing infrastructure while adding sophisticated AI capabilities. The phased approach ensures steady progress with testable milestones.
 
-**Estimated Timeline**: 16 weeks for MVP
-**Team Size**: 2-4 developers
-**Budget**: API costs + infrastructure
+**Estimated Timeline**: 18-20 weeks for MVP (updated for Cursor 2.0 features)
+**Team Size**: 3-5 developers (increased for multi-agent & browser testing)
+**Budget**: API costs + infrastructure + browser automation tools
+
+## 🆕 Cursor 2.0 Impact Summary
+
+### What Changed (November 2025 Update)
+
+**New Features to Implement**:
+1. ✅ Multi-Agent System - Run 2-5 agents in parallel
+2. ✅ Agent Tool Framework - Web search, testing, browser automation
+3. ✅ Browser Testing Integration - Built-in Playwright/Puppeteer
+4. ✅ Enhanced Performance Targets - <30s for agent tasks (4x faster)
+5. ✅ Security Updates - CVE-2025-54136 mitigation, extension scanning
+
+**Timeline Impact**:
+- Phase 5 (Composer) extended by 2 weeks for multi-agent system
+- New Phase 6.5: Browser Testing Integration (1 week)
+- Additional security hardening (ongoing)
+
+**Architecture Changes**:
+- Added multi-agent coordination layer
+- New agent tools framework
+- Browser testing service integration
+- Enhanced security sandbox
+
+**Dependencies Added**:
+- Playwright/Puppeteer for browser automation
+- p-queue, bottleneck for multi-agent rate limiting
+- Security libraries (helmet, validator, sanitize-html)
+
+### Competitive Positioning
+
+**RisingBird vs Cursor 2.0**:
+- ✅ **Parity**: Multi-agent interface, browser testing, tool calling
+- ⚠️ **Challenge**: Cursor's proprietary Composer model (4x speed)
+- ✅ **Advantage**: Open source, customizable, privacy-focused
+- ✅ **Advantage**: Support for more AI providers (OpenAI, Anthropic, Gemini, custom)
+
+**Differentiation Strategy**:
+1. **Open Source**: Full transparency and community contributions
+2. **Privacy First**: Local-only mode, no telemetry by default
+3. **Provider Agnostic**: Easy switching between AI providers
+4. **Extensible**: Plugin system for custom tools and agents
+5. **Cost Effective**: No subscription, bring your own API keys
 
 ## Next Steps
 
-1. ✅ Review and approve this plan
-2. Set up development environment
-3. Create project board with tasks
-4. Begin Phase 1 implementation
-5. Set up CI/CD pipeline
-6. Create initial prototypes
+### Immediate Actions (Week 1)
+1. ✅ Review and approve updated plan
+2. ✅ Fetch latest VSCode from upstream
+3. 🔄 Merge upstream changes (in progress)
+4. ⏳ Update existing code for security vulnerabilities
+5. ⏳ Set up browser testing infrastructure
+
+### Short Term (Weeks 2-4)
+1. Complete Phase 1 implementation
+2. Implement OpenAI provider with API calls
+3. Add Anthropic and Gemini providers
+4. Create agent tools framework
+5. Set up CI/CD pipeline with security scanning
+
+### Medium Term (Weeks 5-12)
+1. Implement autocomplete (Phase 2)
+2. Build chat interface (Phase 3)
+3. Create inline editing (Phase 4)
+4. Develop multi-agent system (Phase 5)
+5. Integrate browser testing (Phase 6.5)
+
+### Long Term (Weeks 13-20)
+1. Polish UI/UX (Phase 7)
+2. Comprehensive testing (Phase 8)
+3. Security audits
+4. Performance optimization
+5. Beta release
 
 ---
 
-**Document Version**: 1.0
-**Last Updated**: October 26, 2025
+**Document Version**: 2.0
+**Last Updated**: November 9, 2025
 **Author**: AI Assistant
-**Status**: Draft - Awaiting Review
+**Status**: Updated for Cursor 2.0 - Ready for Implementation
+**Changelog**:
+- v2.0 (Nov 9, 2025): Added Cursor 2.0 features, security updates, multi-agent system
+- v1.0 (Oct 26, 2025): Initial implementation plan
 
